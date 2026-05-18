@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinanceApp - Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* Estilização customizada para os estados do botão */
+        .btn-inactive {
+            background-color: #d1d5db !important; /* gray-300 */
+            color: #9ca3af !important; /* gray-400 */
+            cursor: not-allowed;
+            transform: scale(1);
+        }
+        .btn-active {
+            background-color: #27F580 !important;
+            color: #000000 !important;
+            cursor: pointer;
+            box-shadow: 0 4px 14px 0 rgba(39, 245, 128, 0.39);
+        }
+        .btn-active:active {
+            transform: scale(0.98);
+        }
+        /* Aumentando o foco visual dos inputs */
+        .input-large {
+            @apply w-full p-4 text-lg border-2 border-gray-200 rounded-xl focus:border-[#27F580] focus:ring-0 focus:outline-none transition-all;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 flex flex-col min-h-screen items-center justify-center p-4">
+
+    <div class="max-w-md w-full bg-white rounded-3xl shadow-2xl p-8 border border-gray-100">
+        <!-- Cabeçalho -->
+        <div class="text-center mb-10">
+            <div class="inline-flex items-center justify-center w-20 h-20 bg-[#27F580] bg-opacity-10 text-[#27F580] rounded-full mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+            <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">FinanceApp</h1>
+            <p class="text-gray-500 mt-2 font-medium" id="auth-subtitle">Entre na sua conta familiar</p>
+        </div>
+
+        <!-- Formulário -->
+        <form id="auth-form" class="space-y-6">
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-2 ml-1">E-mail</label>
+                <input type="email" id="email" class="input-large" placeholder="nome@exemplo.com" required>
+            </div>
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-2 ml-1">Palavra-passe</label>
+                <input type="password" id="password" class="input-large" placeholder="••••••••" required>
+            </div>
+            
+            <button type="submit" id="btn-login" class="w-full py-4 rounded-xl font-bold text-lg transition-all btn-inactive" disabled>
+                Entrar
+            </button>
+        </form>
+
+        <!-- Alternar entre Login/Registo -->
+        <div class="mt-8 text-center">
+            <p class="text-gray-600 font-medium">
+                <span id="toggle-text">Ainda não tem conta?</span>
+                <button id="btn-toggle" class="text-gray-900 font-extrabold hover:underline ml-1">
+                    Criar Conta
+                </button>
+            </p>
+        </div>
+
+        <!-- Mensagem de Erro/Sucesso -->
+        <div id="message" class="mt-6 p-4 rounded-xl text-sm text-center font-bold hidden"></div>
+    </div>
+
+    <script>
+        // --- CONFIGURAÇÃO SUPABASE ---
+        const SUPABASE_URL = 'https://dfyuxttntdthqqbjcjqe.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmeXV4dHRudGR0aHFxYmpjanFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwNDkwOTUsImV4cCI6MjA5NDYyNTA5NX0.FcRAmkMA6MzjkhVTeKN6PeDwt-U-IGFM7yTsqTkaD9c';
+        
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // --- ELEMENTOS DOM ---
+        const authForm = document.getElementById('auth-form');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const btnLogin = document.getElementById('btn-login');
+        const btnToggle = document.getElementById('btn-toggle');
+        const authSubtitle = document.getElementById('auth-subtitle');
+        const toggleText = document.getElementById('toggle-text');
+        const messageDiv = document.getElementById('message');
+
+        let isLogin = true;
+
+        // --- LÓGICA DE VALIDAÇÃO EM TEMPO REAL ---
+        function validateForm() {
+            const email = emailInput.value.trim();
+            const password = passwordInput.value.trim();
+
+            if (email.length > 3 && password.length >= 6) {
+                btnLogin.disabled = false;
+                btnLogin.classList.remove('btn-inactive');
+                btnLogin.classList.add('btn-active');
+            } else {
+                btnLogin.disabled = true;
+                btnLogin.classList.add('btn-inactive');
+                btnLogin.classList.remove('btn-active');
+            }
+        }
+
+        emailInput.addEventListener('input', validateForm);
+        passwordInput.addEventListener('input', validateForm);
+
+        // --- VERIFICAÇÃO DE SESSÃO ATIVA ---
+        async function checkSession() {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session) window.location.href = 'app.html';
+        }
+        checkSession();
+
+        // --- ALTERNAR INTERFACE ---
+        btnToggle.addEventListener('click', () => {
+            isLogin = !isLogin;
+            authSubtitle.innerText = isLogin ? 'Entre na sua conta familiar' : 'Crie uma nova conta colaborativa';
+            btnLogin.innerText = isLogin ? 'Entrar' : 'Registar';
+            toggleText.innerText = isLogin ? 'Ainda não tem conta?' : 'Já tem conta?';
+            btnToggle.innerText = isLogin ? 'Criar Conta' : 'Fazer Login';
+            validateForm(); // Revalida ao trocar
+        });
+
+        // --- LÓGICA DE AUTENTICAÇÃO ---
+        authForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            
+            showMessage('Processando...', 'bg-gray-100 text-gray-700');
+            btnLogin.disabled = true;
+
+            try {
+                if (isLogin) {
+                    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                    if (error) throw error;
+                    window.location.href = 'app.html';
+                } else {
+                    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+                    if (error) throw error;
+                    
+                    if (data.session) {
+                        window.location.href = 'app.html';
+                    } else {
+                        showMessage('Sucesso! Confirme o seu e-mail.', 'bg-green-100 text-green-700');
+                    }
+                }
+            } catch (error) {
+                showMessage(error.message, 'bg-red-100 text-red-700 border-2 border-red-200');
+                validateForm(); // Reativa o botão se houver erro
+            }
+        });
+
+        function showMessage(msg, classes) {
+            messageDiv.innerText = msg;
+            messageDiv.className = `mt-6 p-4 rounded-xl text-sm text-center font-bold ${classes}`;
+            messageDiv.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>

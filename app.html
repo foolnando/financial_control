@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinanceApp - Painel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .btn-primary { background-color: #27F580; color: #000; font-weight: bold; transition: all 0.2s; }
+        .btn-primary:hover { background-color: #1ed96f; transform: translateY(-1px); }
+        .input-style { @apply w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#27F580] focus:outline-none; }
+        .card { @apply bg-white p-6 rounded-2xl shadow-sm border border-gray-100; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <!-- Navbar -->
+    <nav class="bg-white border-b border-gray-200 py-4 px-6 sticky top-0 z-10">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-[#27F580] rounded-lg flex items-center justify-center font-bold text-xs uppercase">FA</div>
+                <span class="font-bold text-xl tracking-tight">FinanceApp</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <span id="user-email" class="hidden md:inline text-sm text-gray-600 font-medium"></span>
+                <button id="btn-logout" class="text-sm font-bold text-red-500 hover:text-red-700 transition">Sair</button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto p-4 md:p-8">
+        
+        <!-- SECÇÃO DE DASHBOARDS E METAS -->
+        <section class="mb-8">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- Cartão de Meta (Budget) -->
+                <div class="card flex flex-col justify-center">
+                    <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+                        <span class="text-2xl">🎯</span> Meta: Alimentação
+                    </h3>
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-sm font-bold">
+                            <span id="budget-label">R$ 0,00 / R$ 300,00</span>
+                            <span id="budget-percent">0%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                            <div id="budget-progress" class="bg-[#27F580] h-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                        <p id="budget-status" class="text-xs text-gray-500 mt-2 font-medium italic">Carregando meta...</p>
+                    </div>
+                </div>
+
+                <!-- Gráfico Categorias -->
+                <div class="card">
+                    <h3 class="text-xs font-bold text-gray-500 uppercase mb-4 text-center">Gastos por Categoria</h3>
+                    <div class="relative h-[150px]">
+                        <canvas id="chartCategories"></canvas>
+                    </div>
+                </div>
+
+                <!-- Gráfico Importância -->
+                <div class="card">
+                    <h3 class="text-xs font-bold text-gray-500 uppercase mb-4 text-center">Por Importância</h3>
+                    <div class="relative h-[150px]">
+                        <canvas id="chartImportance"></canvas>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <!-- Coluna Esquerda: Formulário -->
+            <div class="lg:col-span-5 space-y-6">
+                <div class="card">
+                    <h2 class="text-xl font-bold mb-6 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-[#27F580]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Novo Gasto
+                    </h2>
+                    
+                    <form id="transaction-form" class="space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Data</label>
+                                <input type="date" id="date" class="input-style" required>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Valor (R$)</label>
+                                <input type="number" id="amount" step="0.01" placeholder="0,00" class="input-style" required>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Item / Descrição</label>
+                            <input type="text" id="item_name" placeholder="Ex: Mercado Semanal" class="input-style" required>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Categoria</label>
+                                <select id="category_id" class="input-style" required>
+                                    <option value="">Carregando...</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Importância</label>
+                                <select id="importance_id" class="input-style" required>
+                                    <option value="">Carregando...</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Observação</label>
+                            <textarea id="observation" rows="2" class="input-style" placeholder="Opcional..."></textarea>
+                        </div>
+
+                        <button type="submit" id="btn-save" class="w-full py-4 rounded-xl btn-primary shadow-lg mt-2">
+                            Salvar Gasto
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Coluna Direita: Listagem -->
+            <div class="lg:col-span-7">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold">Histórico Recente</h2>
+                    <span id="total-count" class="bg-gray-200 text-gray-700 text-xs font-bold px-2 py-1 rounded-full">0 lançamentos</span>
+                </div>
+                
+                <div id="transactions-list" class="space-y-3">
+                    <div class="text-center py-10 text-gray-400">Carregando transações...</div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+    // --- CONFIGURAÇÃO ---
+    const SUPABASE_URL = 'https://dfyuxttntdthqqbjcjqe.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmeXV4dHRudGR0aHFxYmpjanFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwNDkwOTUsImV4cCI6MjA5NDYyNTA5NX0.FcRAmkMA6MzjkhVTeKN6PeDwt-U-IGFM7yTsqTkaD9c';
+
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // --- VARIÁVEIS GLOBAIS DASHBOARD ---
+    let chartCatInstance = null;
+    let chartImpInstance = null;
+
+    // --- REFERÊNCIAS DOM ---
+    const form = document.getElementById('transaction-form');
+    const listContainer = document.getElementById('transactions-list');
+    const userEmailSpan = document.getElementById('user-email');
+    const selectCategory = document.getElementById('category_id');
+    const selectImportance = document.getElementById('importance_id');
+
+    // --- INICIALIZAÇÃO ---
+    async function init() {
+        try {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) {
+                window.location.href = 'index.html';
+                return;
+            }
+            userEmailSpan.innerText = session.user.email;
+            document.getElementById('date').valueAsDate = new Date();
+
+            await Promise.all([
+                fetchMetadata('categories', selectCategory),
+                fetchMetadata('importance_levels', selectImportance),
+                fetchTransactions(),
+                carregarDashboard()
+            ]);
+        } catch (err) { console.error(err); }
+    }
+
+    async function fetchMetadata(table, selectElement) {
+        const { data } = await supabaseClient.from(table).select('*').order('name');
+        selectElement.innerHTML = '<option value="">Selecione...</option>';
+        data.forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = item.id;
+            opt.textContent = item.name;
+            selectElement.appendChild(opt);
+        });
+    }
+
+    async function fetchTransactions() {
+        const { data, error } = await supabaseClient
+            .from('transactions')
+            .select('*, categories(name), importance_levels(name)')
+            .order('date', { ascending: false });
+
+        document.getElementById('total-count').innerText = `${data?.length || 0} lançamentos`;
+
+        if (!data || data.length === 0) {
+            listContainer.innerHTML = '<div class="text-center py-10 text-gray-400">Nenhum gasto encontrado.</div>';
+            return;
+        }
+
+        listContainer.innerHTML = data.map(t => `
+            <div class="card flex justify-between items-center p-4 mb-2">
+                <div>
+                    <p class="font-bold">${t.item_name}</p>
+                    <p class="text-[10px] uppercase font-bold text-gray-400">${t.categories?.name || ''} • ${new Date(t.date).toLocaleDateString('pt-BR')}</p>
+                </div>
+                <div class="text-right">
+                    <p class="font-bold text-lg text-gray-800">R$ ${parseFloat(t.amount).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // --- LÓGICA DO DASHBOARD ---
+    async function carregarDashboard() {
+        const agora = new Date();
+        const primeiroDiaMes = new Date(agora.getFullYear(), agora.getMonth(), 1).toISOString();
+
+        const { data: transacoes } = await supabaseClient
+            .from('transactions')
+            .select('*, categories(name), importance_levels(name)')
+            .gte('date', primeiroDiaMes);
+
+        const totaisCat = {};
+        const totaisImp = {};
+        let totalFood = 0;
+
+        transacoes?.forEach(t => {
+            const cNome = t.categories?.name || 'Outros';
+            const iNome = t.importance_levels?.name || 'N/A';
+            const val = parseFloat(t.amount);
+            totaisCat[cNome] = (totaisCat[cNome] || 0) + val;
+            totaisImp[iNome] = (totaisImp[iNome] || 0) + val;
+            if (cNome === 'Food') totalFood += val;
+        });
+
+        atualizarMetaVisual(totalFood);
+        renderizarGraficos(totaisCat, totaisImp);
+    }
+
+    function atualizarMetaVisual(gasto) {
+        const meta = 300.00;
+        const perc = Math.min((gasto / meta) * 100, 100);
+        const bar = document.getElementById('budget-progress');
+        document.getElementById('budget-label').innerText = `R$ ${gasto.toLocaleString('pt-BR')} / R$ ${meta}`;
+        document.getElementById('budget-percent').innerText = `${Math.round((gasto/meta)*100)}%`;
+        bar.style.width = `${perc}%`;
+        
+        const status = document.getElementById('budget-status');
+        if (gasto > meta) {
+            bar.classList.replace('bg-[#27F580]', 'bg-red-500');
+            status.innerText = "⚠️ Limite excedido!";
+            status.className = "text-xs text-red-500 mt-2 font-bold";
+        } else {
+            bar.classList.replace('bg-red-500', 'bg-[#27F580]');
+            status.innerText = "Dentro do limite esperado.";
+            status.className = "text-xs text-gray-500 mt-2 font-medium italic";
+        }
+    }
+
+    function renderizarGraficos(catData, impData) {
+        const config = { maintainAspectRatio: false, plugins: { legend: { display: false } } };
+        
+        const ctxCat = document.getElementById('chartCategories').getContext('2d');
+        if (chartCatInstance) chartCatInstance.destroy();
+        chartCatInstance = new Chart(ctxCat, {
+            type: 'doughnut',
+            data: { labels: Object.keys(catData), datasets: [{ data: Object.values(catData), backgroundColor: ['#27F580', '#3b82f6', '#f59e0b', '#ef4444'] }] },
+            options: config
+        });
+
+        const ctxImp = document.getElementById('chartImportance').getContext('2d');
+        if (chartImpInstance) chartImpInstance.destroy();
+        chartImpInstance = new Chart(ctxImp, {
+            type: 'bar',
+            data: { labels: Object.keys(impData), datasets: [{ data: Object.values(impData), backgroundColor: '#27F580' }] },
+            options: config
+        });
+    }
+
+    // --- SALVAR GASTO ---
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('btn-save');
+        btn.disabled = true; btn.innerText = 'Salvando...';
+
+        try {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            const payload = {
+                user_id: user.id,
+                date: document.getElementById('date').value,
+                item_name: document.getElementById('item_name').value,
+                amount: parseFloat(document.getElementById('amount').value),
+                category_id: document.getElementById('category_id').value,
+                importance_id: document.getElementById('importance_id').value,
+                observation: document.getElementById('observation').value
+            };
+
+            const { error } = await supabaseClient.from('transactions').insert([payload]);
+            if (error) throw error;
+
+            form.reset();
+            document.getElementById('date').valueAsDate = new Date();
+            await fetchTransactions();
+            await carregarDashboard();
+            alert("Salvo!");
+        } catch (err) { alert(err.message); }
+        finally { btn.disabled = false; btn.innerText = 'Salvar Gasto'; }
+    });
+
+    document.getElementById('btn-logout').addEventListener('click', async () => {
+        await supabaseClient.auth.signOut();
+        window.location.href = 'index.html';
+    });
+
+    init();
+    </script>
+</body>
+</html>
