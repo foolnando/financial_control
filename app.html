@@ -251,7 +251,7 @@
             totaisCat[cNome] = (totaisCat[cNome] || 0) + val;
             totaisImp[iNome] = (totaisImp[iNome] || 0) + val;
             
-            // Verifica o nome da categoria no banco de dados
+            // Verifica o nome da categoria no banco de dados (Sua versão original)
             if (cNome === 'Food' || cNome === 'Alimentação') totalFood += val;
             if (cNome === 'Transportation' || cNome === 'Transporte') totalTransport += val;
         });
@@ -263,7 +263,6 @@
         renderizarGraficos(totaisCat, totaisImp);
     }
 
-    // Função refatorada para aceitar qualquer meta
     function atualizarMetaVisual(gasto, meta, idPrefix) {
         const perc = Math.min((gasto / meta) * 100, 100);
         const bar = document.getElementById(`${idPrefix}-progress`);
@@ -287,22 +286,63 @@
     }
 
     function renderizarGraficos(catData, impData) {
-        const config = { maintainAspectRatio: false, plugins: { legend: { display: false } } };
+        const configBase = { maintainAspectRatio: false, plugins: { legend: { display: false } } };
         
+        // 1. Gráfico Categorias (Barras com cores únicas)
         const ctxCat = document.getElementById('chartCategories').getContext('2d');
         if (chartCatInstance) chartCatInstance.destroy();
+
+        const categoryPalette = ['#27F580', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7', '#ec4899', '#22d3ee', '#f97316'];
+        const catLabels = Object.keys(catData);
+        const catValues = Object.values(catData);
+        const catColors = catLabels.map((_, index) => categoryPalette[index % categoryPalette.length]);
+
         chartCatInstance = new Chart(ctxCat, {
-            type: 'doughnut',
-            data: { labels: Object.keys(catData), datasets: [{ data: Object.values(catData), backgroundColor: ['#27F580', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'] }] },
-            options: config
+            type: 'bar',
+            data: { 
+                labels: catLabels, 
+                datasets: [{ 
+                    data: catValues, 
+                    backgroundColor: catColors,
+                    borderWidth: 1,
+                    borderColor: '#e5e7eb'
+                }] 
+            },
+            options: {
+                ...configBase,
+                scales: {
+                    x: { ticks: { font: { size: 10 } } },
+                    y: { 
+                        beginAtZero: true, 
+                        ticks: { 
+                            font: { size: 10 },
+                            callback: (value) => 'R$ ' + value
+                        } 
+                    }
+                }
+            }
         });
 
+        // 2. Gráfico Importância (Barras - Cor padrão da marca)
         const ctxImp = document.getElementById('chartImportance').getContext('2d');
         if (chartImpInstance) chartImpInstance.destroy();
         chartImpInstance = new Chart(ctxImp, {
             type: 'bar',
-            data: { labels: Object.keys(impData), datasets: [{ data: Object.values(impData), backgroundColor: '#27F580' }] },
-            options: config
+            data: { 
+                labels: Object.keys(impData), 
+                datasets: [{ 
+                    data: Object.values(impData), 
+                    backgroundColor: '#27F580',
+                    borderRadius: 4
+                }] 
+            },
+            options: {
+                ...configBase,
+                scales: {
+                    x: { ticks: { font: { size: 10 } } },
+                    y: { beginAtZero: true, ticks: { font: { size: 10 } } }
+                }
+            }
         });
     }
 
